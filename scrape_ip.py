@@ -6,31 +6,38 @@ from bs4 import BeautifulSoup
 import requests
 import ipaddress
 from datetime import datetime
+import pickle
 
 class ScrapeIP:
     ip_to_hall = ['-']*(256*256)
     data_list = []
-    def __init__(self):
-        link = "https://wiki.metakgp.org/w/IP_allocation_of_halls"
-        response = requests.get(link)
-        html = response.content
-        source = BeautifulSoup(html, "lxml")
-        trs = source.findAll("tr")
-        for tr in trs:
-            try:
-                if len(tr.findAll("td")) != 3:
-                    continue
-                tds = tr.findAll("td")
-                addrs = tds[0].text.strip().split('.')
-                place = tds[1].text.strip()
-                if (len(addrs) == 4):
-                    self.ip_to_hall[int(addrs[1])*256 + int(addrs[2])] = place
-                    # print (addrs[1], int(addrs[1]), addrs[2], int(addrs[2]), int(addrs[1])*256 + int(addrs[2]))
-                if (len(addrs) == 3):
-                    for ips in range(0, 256):
-                        self.ip_to_hall[int(addrs[1])*256 + ips] = place
-            except Exception as e:
-                print (e, tr)
+    def __init__(self, fromFile):
+        if (not fromFile):
+            link = "https://wiki.metakgp.org/w/IP_allocation_of_halls"
+            response = requests.get(link)
+            html = response.content
+            source = BeautifulSoup(html, "lxml")
+            trs = source.findAll("tr")
+            for tr in trs:
+                try:
+                    if len(tr.findAll("td")) != 3:
+                        continue
+                    tds = tr.findAll("td")
+                    addrs = tds[0].text.strip().split('.')
+                    place = tds[1].text.strip()
+                    if (len(addrs) == 4):
+                        self.ip_to_hall[int(addrs[1])*256 + int(addrs[2])] = place
+                        # print (addrs[1], int(addrs[1]), addrs[2], int(addrs[2]), int(addrs[1])*256 + int(addrs[2]))
+                    if (len(addrs) == 3):
+                        for ips in range(0, 256):
+                            self.ip_to_hall[int(addrs[1])*256 + ips] = place
+                except Exception as e:
+                    print (e, tr)
+            with open("backup_ip.txt", "wb") as fp:   #Pickling
+                pickle.dump(self.ip_to_hall, fp)
+        else:
+            with open("backup_ip.txt", "rb") as fp:   # Unpickling
+                self.ip_to_hall = pickle.load(fp)
     # takes address as string like 10.117.31.15 and returns the hall
     def probe(self, addr):
         addrs = addr.split('.')
@@ -69,7 +76,8 @@ class ScrapeIP:
                 print (e, data_entry)
         return data_list
 
-a = ScrapeIP()
+a = ScrapeIP(fromFile=False)
+
 tmp = a.parse("data/2017-04-08 16:00")
 
 hall_count = {}
